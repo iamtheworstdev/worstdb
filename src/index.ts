@@ -5,23 +5,33 @@ import Models from './model';
 class DDB {
   client: DocumentClient;
   tableName: string;
-  indexes: string[];
   models: Record<string, Models>;
 
   constructor({
     client,
     tableName = 'PrimaryData',
-    indexes = ['gsi-1', 'gsi-2'],
   }: {
     client: DocumentClient;
     tableName?: string;
-    indexes?: string[];
   }) {
     this.client = client;
     this.tableName = tableName;
-    this.indexes = indexes;
-
     this.models = {} as Record<string, Models>;
+  }
+
+  addModel(
+    name: string,
+    partitionKey: string,
+    sortKey?: string,
+    timestampIndex?: string
+  ) {
+    this.models[name] = new Models(
+      this,
+      name,
+      partitionKey,
+      sortKey,
+      timestampIndex
+    );
   }
 
   getCurrentTimestamp() {

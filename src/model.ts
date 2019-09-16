@@ -12,17 +12,20 @@ class Models {
   resourceName: string = 'model';
   partitionKey: string = 'pk';
   sortKey: string | undefined;
+  timestampIndex: string | undefined;
 
   constructor(
     ddb: DDB,
     resourceName: string,
     partitionKey: string,
-    sortKey?: string
+    sortKey?: string,
+    timestampIndex?: string
   ) {
     this.ddb = ddb;
     this.resourceName = resourceName;
     this.partitionKey = partitionKey;
     this.sortKey = sortKey;
+    this.timestampIndex = timestampIndex;
   }
 
   getPrimaryKey(id: string) {
@@ -62,14 +65,16 @@ class Models {
   async create(model: Model) {
     const { id, ...modelAttributes } = model;
 
-    return await this.ddb.client.put({
-      TableName: this.ddb.tableName,
-      Item: {
-        ...this.getPrimaryKey(id),
-        data: this.ddb.getCurrentTimestamp(),
-        ...modelAttributes,
-      },
-    });
+    return await this.ddb.client
+      .put({
+        TableName: this.ddb.tableName,
+        Item: {
+          ...this.getPrimaryKey(id),
+          data: this.ddb.getCurrentTimestamp(),
+          ...modelAttributes,
+        },
+      })
+      .promise();
   }
 
   async get(id: string): Promise<Model | undefined> {
@@ -83,11 +88,15 @@ class Models {
     return this.itemToModel(Item);
   }
 
-  getRecent = async (count: number): Promise<ModelList> => {
+  async getRecent(count: number): Promise<ModelList> {
+    if (!this.timestampIndex) {
+      throw new Error('Model does not support getRecent');
+    }
+
     const result = await this.ddb.client
       .query({
         TableName: this.ddb.tableName,
-        IndexName: this.ddb.indexes[1],
+        IndexName: this.timestampIndex,
         Limit: count,
         KeyConditionExpression: 'sk = :hkey',
         ExpressionAttributeValues: {
@@ -102,7 +111,7 @@ class Models {
       return result.Items.map(item => this.itemToModel(item));
     }
     return [] as Model[];
-  };
+  }
 }
 
 export default Models;

@@ -11,10 +11,14 @@
     "start": "tsdx watch",
     "build": "tsdx build",
     "test": "tsdx test",
-    "lint": "tsdx lint"
+    "lint": "tsdx lint",
+    "localstack:destroy": "docker-compose run --rm terraform destroy --force",
+    "localstack:create": "docker-compose run --rm terraform apply --auto-approve",
+    "localstack:init": "docker-compose run --rm terraform init",
+    "localstack:reset": "yarn localstack:destroy && yarn localstack:create",
+    "localstack:start": "docker-compose up localstack"
   },
-  "peerDependencies": {
-  },
+  "peerDependencies": {},
   "husky": {
     "hooks": {
       "pre-commit": "tsdx lint"
