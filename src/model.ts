@@ -1,37 +1,47 @@
-import DDB from './index';
+import { DDB } from './index';
 import { DocumentClient } from 'aws-sdk/clients/dynamodb';
+
+type Function = () => string | number;
 
 type Model = {
   id: string;
 };
+
+type Relationship = {
+  index: string;
+  partitionKey: string;
+  partitionKeyValue?: string;
+  sortKey: string;
+  sortKeyValue?: string;
+  type: 'Many_to_Many' | '1_to_1' | '1_to_many' | 'Many_to_1';
+};
+
+type Relationships = Record<string, Relationship>;
 
 type ModelList = (Model | undefined)[];
 
 class Models {
   ddb: DDB;
   resourceName: string = 'model';
-  partitionKey: string = 'pk';
-  sortKey: string | undefined;
   timestampIndex: string | undefined;
+  relationships: Relationships | undefined;
 
   constructor(
     ddb: DDB,
     resourceName: string,
-    partitionKey: string,
-    sortKey?: string,
-    timestampIndex?: string
+    timestampIndex?: string,
+    relationships?: Relationships
   ) {
     this.ddb = ddb;
     this.resourceName = resourceName;
-    this.partitionKey = partitionKey;
-    this.sortKey = sortKey;
     this.timestampIndex = timestampIndex;
+    this.relationships = relationships;
   }
 
   getPrimaryKey(id: string) {
     return {
-      pk: this.getIdWithPrefix(id),
-      sk: this.resourceName,
+      [this.ddb.partitionKey]: this.getIdWithPrefix(id),
+      [this.ddb.sortKey]: this.resourceName,
     };
   }
 
@@ -54,11 +64,12 @@ class Models {
       return undefined;
     }
 
-    const { pk, sk, ...model } = item;
+    delete item[this.ddb.partitionKey];
+    delete item[this.ddb.sortKey];
 
     return {
-      id: this.stripIdPrefix(pk),
-      ...model,
+      id: this.stripIdPrefix(this.ddb.partitionKey),
+      ...item,
     };
   }
 
@@ -88,6 +99,44 @@ class Models {
     return this.itemToModel(Item);
   }
 
+  async getNodes(
+    model: string,
+    partitionKeyValue?: number | string | Function,
+    sortKeyValue?: number | string | Function
+  ): Promise<ModelList> {
+    if (!this.relationships || !this.relationships[model]) {
+      throw new Error('Relationship not specified');
+    }
+
+    const count = 10;
+    const r = this.relationships[model];
+    const pKey =
+      getKeyValue(partitionKeyValue) ||
+      getKeyValue(r.partitionKeyValue) ||
+      this.resourceName;
+    const sKey =
+      getKeyValue(sortKeyValue) || getKeyValue(r.sortKeyValue) || model;
+    const result = await this.ddb.client
+      .query({
+        TableName: this.ddb.tableName,
+        IndexName: r.index,
+        Limit: count,
+        KeyConditionExpression: `${r.partitionKey} = :pKey and ${r.sortKey} = :sKey`,
+        ExpressionAttributeValues: {
+          ':pKey': pKey,
+          ':sKey': sKey,
+        },
+        ScanIndexForward: false,
+        // ExclusiveStartKey: cursor ? extractCursor(cursor) : undefined,
+      })
+      .promise();
+
+    if (result.Count && result.Items) {
+      return result.Items.map(item => this.itemToModel(item));
+    }
+    return [] as ModelList;
+  }
+
   async getRecent(count: number): Promise<ModelList> {
     if (!this.timestampIndex) {
       throw new Error('Model does not support getRecent');
@@ -98,7 +147,7 @@ class Models {
         TableName: this.ddb.tableName,
         IndexName: this.timestampIndex,
         Limit: count,
-        KeyConditionExpression: 'sk = :hkey',
+        KeyConditionExpression: `${this.ddb.sortKey} = :hkey`,
         ExpressionAttributeValues: {
           ':hkey': this.resourceName,
         },
@@ -110,8 +159,17 @@ class Models {
     if (result.Count && result.Items) {
       return result.Items.map(item => this.itemToModel(item));
     }
-    return [] as Model[];
+    return [] as ModelList;
   }
 }
+
+const getKeyValue = (
+  value: number | string | Function | undefined
+): number | string | undefined => {
+  if (typeof value === 'function') {
+    return value();
+  }
+  return value;
+};
 
 export default Models;

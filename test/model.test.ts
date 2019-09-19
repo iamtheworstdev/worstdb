@@ -1,11 +1,11 @@
-import DDB from '../src';
+import { DDB } from '../src';
 import client from './client';
 
 describe('model', () => {
   // beforeAll(clearPrimaryData);
-  const ddb = new DDB({ client });
+  const ddb = new DDB(client, 'PrimaryData', 'pk', 'sk');
 
-  ddb.addModel('model', 'pk', 'sk', 'gsi-2');
+  ddb.addModel('model', 'gsi-2');
 
   it('should create a proper primary key', () => {
     const key = ddb.models.model.getPrimaryKey('1');
@@ -42,6 +42,6 @@ describe('model', () => {
 
     expect(list.length).toBeGreaterThan(0);
 
-    expect(list).toMatchObject([{ id: 3 }, { id: 2 }, { id: 1 }]);
+    expect(list).toMatchObject([{ id: '3' }, { id: '2' }, { id: '1' }]);
   });
 });
