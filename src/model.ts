@@ -106,7 +106,7 @@ export class Models {
     return this.save(item);
   }
 
-  protected async save(Item: DocumentClient.PutItemInputAttributeMap) {
+  public async save(Item: DocumentClient.PutItemInputAttributeMap) {
     console.log(`save - ${JSON.stringify(Item)}`);
     return await this.ddb.client
       .put({
