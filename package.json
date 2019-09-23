@@ -8,8 +8,10 @@
     "dist"
   ],
   "scripts": {
+    "clean:win": "rmdir /S /Q dist",
     "start": "tsdx watch",
     "build": "tsdx build",
+    "build:win": "yarn clean:win && yarn build",
     "test": "tsdx test",
     "lint": "tsdx lint",
     "localstack:destroy": "docker-compose run --rm terraform destroy --force",

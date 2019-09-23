@@ -13,10 +13,8 @@ provider "aws" {
 }
 
 resource "aws_dynamodb_table" "primary_data" {
-  name           = "PrimaryData"
-  billing_mode   = "PROVISIONED"
-  read_capacity  = 2
-  write_capacity = 2
+  name         = "PrimaryData"
+  billing_mode = "PAY_PER_REQUEST"
 
   hash_key  = "pk"
   range_key = "sk"
@@ -32,30 +30,21 @@ resource "aws_dynamodb_table" "primary_data" {
   }
 
   attribute {
-    name = "data"
+    name = "gsi2sk"
     type = "S"
   }
 
   global_secondary_index {
-    name            = "gsi-1"
+    name            = "gsi1"
     hash_key        = "sk"
     range_key       = "pk"
-    write_capacity  = 1
-    read_capacity   = 1
     projection_type = "ALL"
   }
 
   global_secondary_index {
-    name            = "gsi-2"
+    name            = "gsi2"
     hash_key        = "sk"
-    range_key       = "data"
-    write_capacity  = 1
-    read_capacity   = 1
+    range_key       = "gsi2sk"
     projection_type = "ALL"
-  }
-
-  ttl {
-    attribute_name = "TimeToExist"
-    enabled        = false
   }
 }

@@ -5,7 +5,7 @@ describe('model', () => {
   // beforeAll(clearPrimaryData);
   const ddb = new DDB(client, 'PrimaryData', 'pk', 'sk');
 
-  ddb.addModel('model', 'gsi-2');
+  ddb.addGenericModel('model', 'gsi2');
 
   it('should create a proper primary key', () => {
     const key = ddb.models.model.getPrimaryKey('1');
